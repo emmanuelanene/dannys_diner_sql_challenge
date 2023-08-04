@@ -16,6 +16,7 @@ PostgreSQL, Valentina Studio
 The project's dataset was downloaded from this [site](https://www.db-fiddle.com/f/2rM8RAnq7h5LLDTzZiRWcd/138)
 
 ### Pain Points
+---
 Here's a list of the case study questions that needed to be answered:
 1. What is the total amount each customer spent at the restaurant?
 2. How many days has each customer visited the restaurant?
@@ -28,3 +29,13 @@ Here's a list of the case study questions that needed to be answered:
 9. If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customers A and B have at the end of January?
 
+<br>
+
+### Walkthrough
+---
+A database was created in PostgreSQL (within Valentina Studio). Three tables were created within the database namely "members", "menu" and "sales". Each table contained a primary key/unique ID which allowed enabled us to build a STAR-SCHEMA model for the data analysis process.
+
+###### _Dataset loaded into PostgreSQL_
+![](assets/loading-dataset.png)
+
+###### _Dataset loaded into PostgreSQL_
