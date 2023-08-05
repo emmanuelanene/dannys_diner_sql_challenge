@@ -133,13 +133,195 @@ ORDER BY sales.product_id;
 
 #### _Summary: Ramen was the most purchased item._
 
+<br>
 
+---
 ### 5. Which item was the most popular for each customer?
+```SQL
+WITH max_value AS (
+    SELECT customer_id, product_name, count(product_name)
+    FROM sales INNER JOIN menu ON sales.product_id = menu.product_id
+    GROUP BY customer_id, product_name
+    ORDER BY customer_id, count(product_name) DESC
+)
+SELECT *, RANK() OVER(
+    PARTITION BY customer_id
+    ORDER BY "count"
+    DESC)
+FROM max_value
+```
 
-**Result Image**
+###### _Result Dataset_
+![Result Dataset](assets/5.jpg)
 
 #### _Summary:_ 
 _The most purchased item for customer A was RAMEN (purchased 3 times)._
 _The most purchased items for customer B were RAMEN, SUSHI, and CURRY (purchased 2 times each)._
 _The most purchased item for customer C was RAMEN (purchased 3 times)._
 
+<br>
+
+---
+### 6a. Which item was purchased first by the customer after they became a member?
+
+```SQL
+WITH productee AS (
+    SELECT customer_id, product_name, order_date, ROW_NUMBER() OVER(PARTITION BY customer_id ORDER BY order_date) AS "First To Last"
+    FROM sales INNER JOIN menu ON sales.product_id = menu.product_id
+    WHERE (customer_id = 'A' AND order_date >= '2021-01-07') OR (customer_id = 'B' AND order_date >= '2021-01-09')
+    ORDER BY customer_id, order_date
+)  
+SELECT customer_id, product_name, order_date, "First To Last"
+FROM productee
+WHERE "First To Last" = 1;
+```
+
+###### _Result Dataset_
+![Result Dataset](assets/6b.jpg)
+
+#### _Summary:_ 
+_The first item purchased by Customer A after becoming a member was Curry._
+_The first item purchased by Customer B after becoming a member was Sushi._
+_Customer C never became a member._
+
+<br>
+
+---
+### 7. Which item was purchased just before the customer became a member?
+
+```SQL
+WITH setss AS (
+    SELECT sales.customer_id, order_date, product_name, ROW_NUMBER() OVER(PARTITION BY sales.customer_id ORDER BY order_date DESC) AS "Date Ranking"
+    FROM sales 
+        INNER JOIN menu ON sales.product_id = menu.product_id
+        INNER JOIN members ON sales.customer_id = members.customer_id
+    WHERE order_date < join_date
+    ORDER BY sales.customer_id
+)
+SELECT *
+FROM setss
+WHERE "Date Ranking" = 1;
+```
+
+###### _Result Dataset_
+![Result Dataset](assets/7.jpg)
+
+#### _Summary:_ 
+_The last item purchased by Customer A before becoming a member was Sushi._
+_The last item purchased by Customer B before becoming a member was Sushi._
+_Customer C never became a member._
+
+<br>
+
+---
+### 8. What are the total items and amount spent for each member before they became a member?
+
+```SQL
+SELECT customer_id, SUM(price) AS "Amount Spent before membership", COUNT(price) AS "Number of purchases before membership"
+FROM sales INNER JOIN menu ON sales.product_id = menu.product_id
+WHERE (customer_id = 'A' AND order_date < '2021-01-07') OR (customer_id = 'B' AND order_date < '2021-01-09') OR (customer_id = 'C')
+GROUP BY customer_id
+ORDER BY customer_id;
+```
+
+###### _Result Dataset_
+![Result Dataset](assets/8.jpg)
+
+#### _Summary:_ 
+_Customer A spent $25 and also bought 2 items (before membership)._
+_Customer B spent $40 and also bought 3 items (before membership)._
+_Customer A spent $36 and also bought 3 items (before membership)._
+
+<br>
+
+---
+### 9. If each $1 spent equates to 10 points and sushi has a 2x points multiplier - how many points would each customer have?
+
+```SQL
+SELECT customer_id, product_name, SUM(price * 10) AS "10 pts per $1",
+    CASE 
+        WHEN product_name = 'sushi' THEN SUM(price * 10 * 2)
+    END AS "Sushi 2x Multiplier"
+FROM sales 
+    INNER JOIN menu ON sales.product_id = menu.product_id
+GROUP BY customer_id, product_name
+ORDER BY customer_id;
+
+WITH pointtens AS(
+    SELECT customer_id, product_name,
+        CASE 
+            WHEN product_name = 'sushi' THEN SUM(price * 10 * 2)
+            ELSE SUM(price * 10)
+        END AS "condition"
+    FROM sales 
+        INNER JOIN menu ON sales.product_id = menu.product_id
+    GROUP BY customer_id, product_name
+    ORDER BY customer_id
+)
+SELECT customer_id, sum("condition")
+FROM pointtens
+GROUP BY customer_id;
+```
+
+###### _Result Dataset_
+![Result Dataset](assets/9.jpg)
+
+#### _Summary:_ 
+_Customer A has 860 points._
+_Customer B has 940 points._
+_Customer C has 360 points._
+
+<br>
+
+---
+### 10. In the first week after a customer joins the program (including their join date) they earn 2x points on all items, not just sushi - how many points do customers A and B have at the end of January?
+
+```SQL
+WITH cress AS (
+    SELECT sales.customer_id, product_name, sales.order_date, members.join_date, join_date + INTERVAL '6 days' AS "offer_end", price,
+        CASE        
+            WHEN product_name = 'sushi' THEN price * 10 * 2
+            ELSE price * 10
+        END AS points
+    FROM sales  
+        INNER JOIN menu ON sales.product_id = menu.product_id
+        INNER JOIN members ON sales.customer_id = members.customer_id 
+    ORDER BY customer_id, order_date
+)
+SELECT customer_id, product_name, order_date, join_date, offer_end, price, points,
+    CASE
+        WHEN order_date BETWEEN join_date AND offer_end THEN points * 2
+        ELSE points
+    END
+FROM cress
+WHERE order_date <= '2021-01-31'
+-- group by customer_id
+;
+
+WITH crestcare AS (
+    SELECT sales.customer_id, sales.product_id, order_date, product_name, price, join_date,
+        CASE
+            WHEN (sales.customer_id = 'A' AND order_date BETWEEN '2021-01-01' AND '2021-01-07') THEN price * 2 * 10
+            WHEN (sales.customer_id = 'B' AND order_date BETWEEN '2021-01-01' AND '2021-01-07') THEN price * 2 * 10
+            ELSE price
+        END AS "points"
+    FROM sales
+        INNER JOIN menu ON sales.product_id = menu.product_id
+        INNER JOIN members ON sales.customer_id = members.customer_id
+    ORDER BY sales.customer_id, order_date
+)
+SELECT customer_id, sum ("points")
+FROM crestcare
+GROUP BY customer_id;
+```
+
+###### _Result Dataset_
+![Result Dataset](assets/10a.jpg)
+
+###### _Result Dataset_
+![Result Dataset](assets/10b.jpg)
+
+#### _Summary:_ 
+_Customer A has 836 points at the end of January._
+_Customer B has 834 points at the end of January._
+_Customer C never became a member._
