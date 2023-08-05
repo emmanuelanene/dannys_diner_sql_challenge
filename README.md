@@ -38,4 +38,108 @@ A database was created in PostgreSQL (within Valentina Studio). Three tables wer
 ###### _Dataset loaded into PostgreSQL_
 ![](assets/loading-dataset.png)
 
-###### _Dataset loaded into PostgreSQL_
+---
+### 1. What is the total amount each customer spent at the restaurant?
+
+```SQL
+SELECT customer_id, SUM(price)
+FROM sales as s
+    INNER JOIN menu as m ON s.product_id = m.product_id
+GROUP BY customer_id
+ORDER BY customer_id;
+```
+
+#### Result set:
+| customer_id | total_sales |
+| ----------- | ----------- |
+| A           | 76          |
+| B           | 74          |
+| C           | 36          |
+
+#### _Summary: Customers A, B, and C spent $76, $74 and $36 each._
+
+<br>
+
+---
+### 2. How many days has each customer visited the restaurant?
+
+```SQL
+SELECT customer_id, COUNT(DISTINCT order_date) AS "Number of Days with Purchase"
+FROM sales
+GROUP BY customer_id
+ORDER by customer_id;
+```
+
+#### Result set:
+| customer_id | Number of Days with Purchase |
+| ----------- | -----------------------------|
+| A           | 4                            |
+| B           | 6                            |
+| C           | 2                            |
+
+#### _Summary: Customer A visited the restaurant 4 times, Customer B visited the restaurant 6 times, Customer C visited the restaurant 2 times._
+
+<br>
+
+---
+### 3. What was the first item from the menu purchased by each customer?
+
+```SQL
+WITH dataset as (
+    SELECT customer_id, order_date, product_name, ROW_NUMBER() over(
+        PARTITION BY customer_id
+        ORDER BY order_date
+        ) AS ranking
+    FROM sales 
+        INNER JOIN menu ON sales.product_id = menu.product_id
+    ORDER BY customer_id
+)
+SELECT *
+FROM dataset
+WHERE ranking = 1;
+```
+
+#### Result set:
+| customer_id | order_date | product_name | ranking  |
+| ----------- | -----------| ------------ | -------- |
+| A           | 4          | curry        | 1        |
+| A           | 4          | sushi        | 1        |
+| B           | 6          | curry        | 1        |
+| C           | 2          | ramen        | 1        |
+| C           | 2          | ramen        | 1        |
+
+
+#### _Summary: Customer A's first purchase was Curry & Ramen, Customer B's first purchase was Curry, and Customer C's first purchase was Ramen._
+
+<br>
+
+---
+### 4. What is the most purchased item on the menu and how many times was it purchased by all customers?
+
+```SQL
+SELECT sales.product_id, product_name, COUNT(sales.product_id)
+FROM sales
+    INNER JOIN menu ON sales.product_id = menu.product_id
+GROUP BY sales.product_id, product_name
+ORDER BY sales.product_id;
+```
+
+| product_id | product_name | count |
+| ----------- | ----------- | ----- |
+| 1           | sushi       | 3
+| 2           | curry       | 4
+| 3           | ramen       | 8
+
+
+#### _Summary: Ramen was the most purchased item._
+
+
+### 5. Which item was the most popular for each customer?
+
+**Result Image**
+
+#### _Summary:_ 
+_The most purchased item for customer A was RAMEN (purchased 3 times)._
+_The most purchased items for customer B were RAMEN, SUSHI, and CURRY (purchased 2 times each)._
+_The most purchased item for customer C was RAMEN (purchased 3 times)._
+
